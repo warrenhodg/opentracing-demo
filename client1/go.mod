@@ -1,4 +1,4 @@
-module client1
+module github.com/warrenhodg/opentracing-demo/client1
 
 go 1.16
 

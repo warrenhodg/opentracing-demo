@@ -1,13 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
-	"strings"
+
+	httpheadersmiddleware "github.com/warrenhodg/opentracing-demo/tracing/middleware/httpheaders"
+	httpquerymiddleware "github.com/warrenhodg/opentracing-demo/tracing/middleware/httpquery"
 
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
-	"github.com/opentracing/opentracing-go/log"
 	"github.com/uber/jaeger-lib/metrics"
 
 	"github.com/uber/jaeger-client-go"
@@ -15,41 +14,19 @@ import (
 	jaegerlog "github.com/uber/jaeger-client-go/log"
 )
 
-func handleHealth(w http.ResponseWriter, r *http.Request) {
-	tracer := opentracing.GlobalTracer()
-	spanCtx, _ := tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(r.Header))
-	span := tracer.StartSpan("health", ext.RPCServerOption(spanCtx))
-	span.LogFields(
-		log.String("uri", "health"),
-	)
-	span.SetTag("relatedto", "health")
-	span.Finish()
+func handleFoo(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("OK"))
 }
 
-func handleHealth2(w http.ResponseWriter, r *http.Request) {
-	tracer := opentracing.GlobalTracer()
-	fmt.Printf("Query is %v\n", r.URL.String())
-	s := r.URL.Query().Get("span")
-	fmt.Printf("Span is %v\n", s)
-	rdr := strings.NewReader(s)
-	spanCtx, err := tracer.Extract(opentracing.Binary, rdr)
-	if err != nil {
-		fmt.Printf("Error %v\n", err)
-	}
-	span := tracer.StartSpan("health2", ext.RPCServerOption(spanCtx))
-	span.SetTag("def", "DEF")
-	span.Finish()
+func handleBar(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("OK"))
 }
 
 func main() {
 	cfg := jaegercfg.Configuration{
 		ServiceName: "client1",
 		Sampler: &jaegercfg.SamplerConfig{
-			/*
-				Type:  jaeger.SamplerTypeProbabilistic,
-				Param: 0.1,
-			*/
-			Type:  jaeger.SamplerTypeConst,
+			Type:  jaeger.SamplerTypeProbabilistic,
 			Param: 1,
 		},
 		Reporter: &jaegercfg.ReporterConfig{
@@ -72,8 +49,8 @@ func main() {
 	opentracing.SetGlobalTracer(tracer)
 	defer closer.Close()
 
-	http.DefaultServeMux.HandleFunc("/health", handleHealth)
-	http.DefaultServeMux.HandleFunc("/health2", handleHealth2)
+	http.DefaultServeMux.HandleFunc("/foo", httpheadersmiddleware.New(tracer, "foo", handleFoo).HandlerFunc)
+	http.DefaultServeMux.HandleFunc("/bar", httpquerymiddleware.New(tracer, "bar", handleBar).HandlerFunc)
 
 	http.ListenAndServe(":8080", nil)
 }
