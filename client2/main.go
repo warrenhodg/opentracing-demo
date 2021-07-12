@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 
+	"github.com/warrenhodg/opentracing-demo/tracing"
 	httpheaderschain "github.com/warrenhodg/opentracing-demo/tracing/chain/httpheaders"
 	httpquerychain "github.com/warrenhodg/opentracing-demo/tracing/chain/httpquery"
 	httpheadersmiddleware "github.com/warrenhodg/opentracing-demo/tracing/middleware/httpheaders"
@@ -19,20 +21,22 @@ import (
 // handleFoo passes the request onto another service
 // to get the actual value. It passes the span via
 // http headers to the other service
-func handleFoo(w http.ResponseWriter, req *http.Request) {
+func handleFoo(w http.ResponseWriter, r *http.Request) {
 	url := "http://localhost:8080/foo"
 	req, _ := http.NewRequest("GET", url, nil)
 
-	err := httpheaderschain.InjectSpan(req.Context(), req)
+	err := httpheaderschain.InjectSpan(r.Context(), req)
 	if err != nil {
+		fmt.Printf("%v\n", err)
 		// Log the error, but allow the request to proceed without
 		// tracing having been setup
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		w.Header(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 	defer resp.Body.Close()
 
@@ -41,21 +45,23 @@ func handleFoo(w http.ResponseWriter, req *http.Request) {
 
 // handleBar passes the request onto another service
 // to get the actual value. It passes the span via
-// http query to the other service
-func handleFoo(w http.ResponseWriter, req *http.Request) {
+// http query to the other service.
+func handleBar(w http.ResponseWriter, r *http.Request) {
 	url := "http://localhost:8080/bar"
 	req, _ := http.NewRequest("GET", url, nil)
 
-	err := httpquerychain.InjectSpan(req.Context(), req, "telemetryspan")
+	err := httpquerychain.InjectSpan(r.Context(), req, tracing.DefaultTelemetryParam)
 	if err != nil {
+		fmt.Printf("%v\n", err)
 		// Log the error, but allow the request to proceed without
 		// tracing having been setup
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		w.Header(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 	defer resp.Body.Close()
 
@@ -90,7 +96,7 @@ func main() {
 	defer closer.Close()
 
 	http.DefaultServeMux.HandleFunc("/foo", httpheadersmiddleware.New(tracer, "foo", handleFoo).HandlerFunc)
-	http.DefaultServeMux.HandleFunc("/bar", httpquerymiddleware.New(tracer, "bar", handleBar).HandlerFunc)
+	http.DefaultServeMux.HandleFunc("/bar", httpquerymiddleware.New(tracer, "bar", "", handleBar).HandlerFunc)
 
 	http.ListenAndServe(":8081", nil)
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/warrenhodg/opentracing-demo/tracing"
 	httpheadersmiddleware "github.com/warrenhodg/opentracing-demo/tracing/middleware/httpheaders"
 	httpquerymiddleware "github.com/warrenhodg/opentracing-demo/tracing/middleware/httpquery"
 
@@ -50,7 +51,7 @@ func main() {
 	defer closer.Close()
 
 	http.DefaultServeMux.HandleFunc("/foo", httpheadersmiddleware.New(tracer, "foo", handleFoo).HandlerFunc)
-	http.DefaultServeMux.HandleFunc("/bar", httpquerymiddleware.New(tracer, "bar", handleBar).HandlerFunc)
+	http.DefaultServeMux.HandleFunc("/bar", httpquerymiddleware.New(tracer, "bar", tracing.DefaultTelemetryParam, handleBar).HandlerFunc)
 
 	http.ListenAndServe(":8080", nil)
 }

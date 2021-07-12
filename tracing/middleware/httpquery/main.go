@@ -38,14 +38,16 @@ func (m *Middleware) HandlerFunc(w http.ResponseWriter, req *http.Request) {
 		err     error
 	)
 
-	v := req.URL.Query().Get(m.queryParam)
-	if v != "" {
-		r := strings.NewReader(v)
-		spanCtx, err = m.tracer.Extract(opentracing.Binary, r)
-		if err != nil {
-			// Log the error. If spanCtx is nil here, then we are
-			// unable to continue an existing span contact,
-			// and will simply create a new one
+	if m.queryParam != "" {
+		v := req.URL.Query().Get(m.queryParam)
+		if v != "" {
+			r := strings.NewReader(v)
+			spanCtx, err = m.tracer.Extract(opentracing.Binary, r)
+			if err != nil {
+				// Log the error. If spanCtx is nil here, then we are
+				// unable to continue an existing span contact,
+				// and will simply create a new one
+			}
 		}
 	}
 
