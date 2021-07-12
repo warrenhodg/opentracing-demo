@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/opentracing/opentracing-go"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/warrenhodg/opentracing-demo/tracing"
@@ -34,11 +33,20 @@ func New(tracer opentracing.Tracer, operationName string, queryParam string, han
 // HandlerFunc wraps the call in a span, and continues then passes the request
 // to another function handler
 func (m *Middleware) HandlerFunc(w http.ResponseWriter, req *http.Request) {
+	var (
+		spanCtx opentracing.SpanContext
+		err     error
+	)
+
 	v := req.URL.Query().Get(m.queryParam)
-	var spanCtx opentracing.SpanContext
 	if v != "" {
 		r := strings.NewReader(v)
-		spanCtx = m.tracer.Extract(opentracing.Binary, r)
+		spanCtx, err = m.tracer.Extract(opentracing.Binary, r)
+		if err != nil {
+			// Log the error. If spanCtx is nil here, then we are
+			// unable to continue an existing span contact,
+			// and will simply create a new one
+		}
 	}
 
 	// if spanCtx is nil here, then we are unable to continue an existing span contact,

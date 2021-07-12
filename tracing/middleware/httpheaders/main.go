@@ -30,9 +30,12 @@ func New(tracer opentracing.Tracer, operationName string, handler func(http.Resp
 // HandlerFunc wraps the call in a span, and continues then passes the request
 // to another function handler
 func (m *Middleware) HandlerFunc(w http.ResponseWriter, req *http.Request) {
-	spanCtx := m.tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
-	// if spanCtx is nil here, then we are unable to continue an existing span contact,
-	// and will simply create a new one
+	spanCtx, err := m.tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
+	if err != nil {
+		// Log the error. If spanCtx is nil here, then we are
+		// unable to continue an existing span contact,
+		// and will simply create a new one
+	}
 
 	span := m.tracer.StartSpan(m.operationName, ext.RPCServerOption(spanCtx))
 	defer span.Finish()
